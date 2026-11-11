@@ -5,7 +5,6 @@ const PORT = process.env.PORT || 10000;
 
 app.use(express.json());
 
-// Protocol State - Immutable Ledger Chain & Secured Vaults
 const vaults = new Map();
 const blockchainLedger = [{
     index: 0,
@@ -16,15 +15,39 @@ const blockchainLedger = [{
     hash: crypto.createHash('sha256').update("genesis").digest('hex')
 }];
 
-// Panel de Control Visual - Negro Puro OLED con Telemetría Criptográfica
+// Traductor automático basado en el idioma del cliente
+function gettext(req) {
+    const lang = req.headers['accept-language'] || 'es';
+    if (lang.includes('en')) {
+        return {
+            title: "Krypton Protocol",
+            status: "SECURE [ONLINE]",
+            subtitle: "Cryptographic Escrow & Chained Ledger Active",
+            btnText: "Execute Infallible Pipeline",
+            waiting: "Core secured. Waiting for agents...",
+            executing: "Executing atomic pipeline..."
+        };
+    }
+    return {
+        title: "Krypton Protocol",
+        status: "SEGURO [EN LÍNEA]",
+        subtitle: "Escrow Criptográfico y Ledger En Cadena Activo",
+        btnText: "Ejecutar Pipeline Inalcanzable",
+        waiting: "Núcleo blindado listo. Esperando agentes...",
+        executing: "Ejecutando pipeline atómico..."
+    };
+}
+
+// Panel de Control Visual con Detección Automática de Idioma
 app.get('/', (req, res) => {
+  const t = gettext(req);
   res.send(`
     <!DOCTYPE html>
     <html lang="es">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Krypton Protocol | Master Infallible Core</title>
+        <title>${t.title} | Master Core</title>
         <style>
             body { background: #000000; color: #ffffff; font-family: monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
             .card { background: #0a0a0a; padding: 30px; border-radius: 8px; box-shadow: 0 0 30px rgba(0,255,102,0.08); width: 480px; border: 1px solid #222222; }
@@ -38,15 +61,15 @@ app.get('/', (req, res) => {
     </head>
     <body>
         <div class="card">
-            <h2>Krypton Protocol <span class="status">SECURE [ONLINE]</span></h2>
-            <div class="stats">Cryptographic Escrow & Chained Ledger Active</div>
-            <button onclick="testInfalliblePipeline()">Ejecutar Pipeline Inalcanzable</button>
-            <pre id="output">Núcleo blindado listo. Esperando agentes...</pre>
+            <h2>${t.title} <span class="status">${t.status}</span></h2>
+            <div class="stats">${t.subtitle}</div>
+            <button onclick="testInfalliblePipeline()">${t.btnText}</button>
+            <pre id="output">${t.waiting}</pre>
         </div>
         <script>
             async function testInfalliblePipeline() {
                 const output = document.getElementById('output');
-                output.innerText = "1. Solicitando Bóveda Criptográfica...\n";
+                output.innerText = "${t.executing}\\n1. Vault Request...";
                 try {
                     const vaultRes = await fetch('/api/v1/escrow/vault', {
                         method: 'POST',
@@ -54,13 +77,15 @@ app.get('/', (req, res) => {
                         body: JSON.stringify({ buyerAgent: "Agent-Alpha", sellerAgent: "Agent-Beta", amount: 50000 })
                     });
                     const vaultData = await vaultRes.json();
-                    output.innerText += "VAULT SECURED: " + vaultData.vaultId + "\n\n2. Ejecutando Liquidación Inmutable...\n";
+                    if (!vaultRes.ok) throw new Error(vaultData.error || "Vault error");
+                    
+                    output.innerText += "\\nVAULT SECURED: " + vaultData.vaultId + "\\n2. Executing Settlement...";
 
                     const settleRes = await fetch('/api/v1/settlement/execute', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            transactionId: "tx_infallible_" + Math.floor(Math.random() * 99999),
+                            transactionId: "tx_inf_" + Math.floor(Math.random() * 99999),
                             vaultId: vaultData.vaultId,
                             sourceAgent: "Agent-Alpha",
                             targetAgent: "Agent-Beta",
@@ -69,9 +94,11 @@ app.get('/', (req, res) => {
                         })
                     });
                     const settleData = await settleRes.json();
-                    output.innerText += "SUCCESSFUL SETTLEMENT:\n" + JSON.stringify(settleData, null, 2);
+                    if (!settleRes.ok) throw new Error(settleData.error || "Settlement error");
+
+                    output.innerText += "\\nSUCCESS:\\n" + JSON.stringify(settleData, null, 2);
                 } catch (err) {
-                    output.innerText = "Error crítico: " + err.message;
+                    output.innerText = "CRITICAL ERROR: " + err.message;
                 }
             }
         </script>
@@ -80,11 +107,10 @@ app.get('/', (req, res) => {
   `);
 });
 
-// 1. Creación de Bóvedas de Escrow con Protección Criptográfica
 app.post('/api/v1/escrow/vault', (req, res) => {
     const { buyerAgent, sellerAgent, amount } = req.body;
     if (!buyerAgent || !sellerAgent || !amount) {
-        return res.status(400).json({ error: "Parámetros de bóveda insuficientes." });
+        return res.status(400).json({ error: "Invalid vault parameters." });
     }
     const vaultId = `vlt_${crypto.randomBytes(16).toString('hex')}`;
     const vaultData = {
@@ -93,43 +119,30 @@ app.post('/api/v1/escrow/vault', (req, res) => {
         buyerAgent,
         sellerAgent,
         amount,
-        createdAt: new Date().toISOString(),
-        checksum: crypto.createHash('sha256').update(vaultId + amount).digest('hex')
+        createdAt: new Date().toISOString()
     };
-    
     vaults.set(vaultId, vaultData);
     res.status(201).json(vaultData);
 });
 
-// 2. Liquidación Atómica Inalcanzable con Hashing En Cadena (Blockchain Ledger)
 app.post('/api/v1/settlement/execute', async (req, res) => {
     try {
         const { transactionId, vaultId, sourceAgent, targetAgent, amount, currency } = req.body;
-
         if (!transactionId || !amount || !currency) {
-            return res.status(400).json({ 
-                error: "Parámetros de liquidación insuficientes. Se requiere ID, monto y moneda." 
-            });
+            return res.status(400).json({ error: "Insufficient settlement parameters." });
         }
 
         if (vaultId && vaults.has(vaultId)) {
-            const vault = vaults.get(vaultId);
-            vault.status = "SETTLED_AND_COMMITTED";
+            vaults.get(vaultId).status = "SETTLED_AND_COMMITTED";
         }
 
-        // Enlace criptográfico con el bloque anterior (Chain Integrity)
         const previousBlock = blockchainLedger[blockchainLedger.length - 1];
         const blockPayload = {
             index: blockchainLedger.length,
             previousHash: previousBlock.hash,
             timestamp: new Date().toISOString(),
             transactionId,
-            details: {
-                source: sourceAgent || "Anonymous-Agent",
-                target: targetAgent || "Treasury",
-                amount,
-                currency
-            }
+            details: { source: sourceAgent || "Agent", target: targetAgent || "Treasury", amount, currency }
         };
 
         const currentHash = crypto.createHash('sha256')
@@ -139,16 +152,13 @@ app.post('/api/v1/settlement/execute', async (req, res) => {
         const immutableRecord = {
             ...blockPayload,
             hash: currentHash,
-            status: "SETTLED_IMMUTABLE",
-            settlementLayer: "Krypton Protocol Infallible Core"
+            status: "SETTLED_IMMUTABLE"
         };
 
         blockchainLedger.push(immutableRecord);
-
         res.json(immutableRecord);
-
     } catch (error) {
-        res.status(500).json({ error: "Error crítico en la red de liquidación", details: error.message });
+        res.status(500).json({ error: error.message });
     }
 });
 
