@@ -1,0 +1,12 @@
+{
+  "name": "krypton-protocol-core",
+  "version": "1.0.0",
+  "description": "Autonomous global settlement layer for AI and software APIs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
