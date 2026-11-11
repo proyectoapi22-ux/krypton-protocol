@@ -14,13 +14,13 @@ app.get('/', (req, res) => {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Krypton Protocol | Core Engine</title>
         <style>
-            body { background: #0f172a; color: #f8fafc; font-family: monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-            .card { background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); width: 450px; border: 1px: #334155; }
-            h2 { color: #38bdf8; margin-top: 0; }
-            .status { color: #4ade80; font-weight: bold; }
-            button { background: #38bdf8; color: #0f172a; border: none; padding: 10px 15px; font-weight: bold; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 15px; }
-            button:hover { background: #0ea5e9; }
-            pre { background: #090d16; padding: 10px; border-radius: 6px; font-size: 12px; overflow-x: auto; color: #38bdf8; }
+            body { background: #000000; color: #ffffff; font-family: monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+            .card { background: #0a0a0a; padding: 30px; border-radius: 8px; box-shadow: 0 0 20px rgba(255,255,255,0.05); width: 450px; border: 1px solid #222222; }
+            h2 { color: #ffffff; margin-top: 0; border-bottom: 1px solid #222222; padding-bottom: 10px; }
+            .status { color: #00ff66; font-weight: bold; }
+            button { background: #ffffff; color: #000000; border: none; padding: 10px 15px; font-weight: bold; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 15px; }
+            button:hover { background: #cccccc; }
+            pre { background: #000000; padding: 10px; border-radius: 4px; font-size: 12px; overflow-x: auto; color: #00ff66; border: 1px solid #222222; }
         </style>
     </head>
     <body>
