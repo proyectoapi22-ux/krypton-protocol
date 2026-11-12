@@ -12,7 +12,7 @@ const pool = new Pool({
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-// Initialize Master Enterprise Tables
+// Initialize Master Enterprise Tables with Dual-Channel Support
 async function initDB() {
     try {
         await pool.query(`
@@ -20,6 +20,7 @@ async function initDB() {
                 apiKey VARCHAR(64) PRIMARY KEY,
                 companyName VARCHAR(128),
                 balance NUMERIC DEFAULT 0,
+                preferredPaymentMethod VARCHAR(32) DEFAULT 'HYBRID',
                 isActive BOOLEAN DEFAULT TRUE,
                 createdAt TIMESTAMP
             );
@@ -29,6 +30,7 @@ async function initDB() {
                 buyerAgent VARCHAR(64),
                 sellerAgent VARCHAR(64),
                 amount NUMERIC,
+                paymentChannel VARCHAR(32) DEFAULT 'FIAT_PADDLE',
                 createdAt TIMESTAMP
             );
             CREATE TABLE IF NOT EXISTS ledger (
@@ -41,7 +43,7 @@ async function initDB() {
                 createdAt TIMESTAMP
             );
         `);
-        console.log("Krypton God-Tier Enterprise Database synchronized.");
+        console.log("Krypton Dual-Engine Enterprise Database synchronized.");
     } catch (err) {
         console.error("Database initialization error:", err.message);
     }
@@ -60,15 +62,12 @@ async function verifyAgentAndIdempotency(req, res, next) {
     }
 
     try {
-        // Verify if API Key exists and is active in database
         const agentRes = await pool.query('SELECT * FROM agents WHERE apiKey = $1 AND isActive = TRUE', [apiKey]);
         
-        // Fallback master key for initial bootstrap testing if table is empty
         if (agentRes.rows.length === 0 && apiKey !== 'agent_key_prod_core') {
             return res.status(403).json({ error: "Invalid or revoked Agent API Key." });
         }
 
-        // HMAC Signature Validation if provided
         if (signature) {
             const computedSig = crypto.createHmac('sha256', SECRET_KEY).update(JSON.stringify(req.body)).digest('hex');
             if (signature !== computedSig) {
@@ -76,7 +75,6 @@ async function verifyAgentAndIdempotency(req, res, next) {
             }
         }
 
-        // Idempotency check: Prevent duplicate transaction processing
         if (transactionId) {
             const txCheck = await pool.query('SELECT id FROM ledger WHERE transactionId = $1', [transactionId]);
             if (txCheck.rows.length > 0) {
@@ -98,29 +96,29 @@ app.get('/', (req, res) => {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Krypton Protocol | God-Tier Settlement Core</title>
+        <title>Krypton Protocol | Dual-Engine Core</title>
         <style>
             body { background: #000000; color: #ffffff; font-family: monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-            .card { background: #0a0a0a; padding: 30px; border-radius: 8px; box-shadow: 0 0 30px rgba(0,255,102,0.08); width: 520px; border: 1px solid #222222; }
+            .card { background: #0a0a0a; padding: 30px; border-radius: 8px; box-shadow: 0 0 30px rgba(0,255,102,0.08); width: 540px; border: 1px solid #222222; }
             h2 { color: #ffffff; margin-top: 0; border-bottom: 1px solid #222222; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
             .status { color: #00ff66; font-size: 11px; font-weight: bold; }
             button { background: #ffffff; color: #000000; border: none; padding: 12px; font-weight: bold; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 15px; transition: 0.2s; }
             button:hover { background: #00ff66; color: #000000; }
-            pre { background: #000000; padding: 12px; border-radius: 4px; font-size: 11px; overflow-x: auto; color: #00ff66; border: 1px solid #222222; max-height: 200px; }
+            pre { background: #000000; padding: 12px; border-radius: 4px; font-size: 11px; overflow-x: auto; color: #00ff66; border: 1px solid #222222; max-height: 180px; }
             .stats { font-size: 11px; color: #777777; margin-bottom: 10px; }
         </style>
     </head>
     <body>
         <div class="card">
-            <h2>Krypton Protocol <span class="status">GOD-TIER [SECURE]</span></h2>
-            <div class="stats">Multi-Tenant Vaults, Idempotency & Immutable Ledger</div>
-            <button onclick="executeGodTierPipeline()">Execute God-Tier Settlement</button>
-            <pre id="output">Enterprise core initialized. Ready for autonomous agent requests...</pre>
+            <h2>Krypton Protocol <span class="status">DUAL-ENGINE [ACTIVE]</span></h2>
+            <div class="stats">Paddle (Fiat) & USDT (Crypto) Settlement Support</div>
+            <button onclick="executeDualPipeline()">Execute Dual-Channel Settlement</button>
+            <pre id="output">Core initialized. Ready for Fiat & Crypto agent transactions...</pre>
         </div>
         <script>
-            async function executeGodTierPipeline() {
+            async function executeDualPipeline() {
                 const output = document.getElementById('output');
-                output.innerText = "1. Initializing secure escrow vault...";
+                output.innerText = "1. Initializing secure escrow vault (Channel: CRYPTO_USDT)...";
                 try {
                     const vaultRes = await fetch('/api/v1/escrow/vault', {
                         method: 'POST',
@@ -128,14 +126,19 @@ app.get('/', (req, res) => {
                             'Content-Type': 'application/json',
                             'x-api-key': 'agent_key_prod_core'
                         },
-                        body: JSON.stringify({ buyerAgent: "Autonomous-Agent-Alpha", sellerAgent: "Autonomous-Agent-Beta", amount: 250000 })
+                        body: JSON.stringify({ 
+                            buyerAgent: "Autonomous-Agent-Alpha", 
+                            sellerAgent: "Autonomous-Agent-Beta", 
+                            amount: 300000,
+                            paymentChannel: "CRYPTO_USDT" 
+                        })
                     });
                     const vaultData = await vaultRes.json();
                     if (!vaultRes.ok) throw new Error(vaultData.error);
 
-                    output.innerText += "\\nVault Secured: " + vaultData.vaultId + "\\n2. Executing Idempotent Settlement with Fee Take-Rate...";
+                    output.innerText += "\\nVault Secured: " + vaultData.vaultId + "\\n2. Executing Settlement & Protocol Take-Rate...";
 
-                    const txId = "tx_god_" + Math.floor(Math.random() * 999999);
+                    const txId = "tx_dual_" + Math.floor(Math.random() * 999999);
                     const settleRes = await fetch('/api/v1/settlement/execute', {
                         method: 'POST',
                         headers: { 
@@ -147,8 +150,8 @@ app.get('/', (req, res) => {
                             vaultId: vaultData.vaultId,
                             sourceAgent: "Autonomous-Agent-Alpha",
                             targetAgent: "Autonomous-Agent-Beta",
-                            amount: 250000,
-                            currency: "USD"
+                            amount: 300000,
+                            currency: "USDT"
                         })
                     });
                     const settleData = await settleRes.json();
@@ -167,38 +170,40 @@ app.get('/', (req, res) => {
 
 // Register new Agent API Key (Admin Endpoint)
 app.post('/api/v1/agents/register', async (req, res) => {
-    const { companyName } = req.body;
+    const { companyName, preferredPaymentMethod } = req.body;
     if (!companyName) return res.status(400).json({ error: "Company name required." });
     
     const apiKey = `agent_key_${crypto.randomBytes(16).toString('hex')}`;
+    const paymentMethod = preferredPaymentMethod || 'HYBRID';
     const createdAt = new Date().toISOString();
 
     try {
         await pool.query(
-            'INSERT INTO agents (apiKey, companyName, balance, isActive, createdAt) VALUES ($1, $2, $3, $4, $5)',
-            [apiKey, companyName, 0, true, createdAt]
+            'INSERT INTO agents (apiKey, companyName, balance, preferredPaymentMethod, isActive, createdAt) VALUES ($1, $2, $3, $4, $5, $6)',
+            [apiKey, companyName, 0, paymentMethod, true, createdAt]
         );
-        res.status(201).json({ message: "Agent successfully registered.", apiKey, companyName });
+        res.status(201).json({ message: "Agent successfully registered with dual-engine support.", apiKey, companyName, paymentMethod });
     } catch (err) {
         res.status(500).json({ error: "Database error", details: err.message });
     }
 });
 
-// Secure Escrow Vault Creation
+// Secure Escrow Vault Creation with Payment Channel Support
 app.post('/api/v1/escrow/vault', verifyAgentAndIdempotency, async (req, res) => {
-    const { buyerAgent, sellerAgent, amount } = req.body;
+    const { buyerAgent, sellerAgent, amount, paymentChannel } = req.body;
     if (!buyerAgent || !sellerAgent || !amount) {
         return res.status(400).json({ error: "Insufficient vault parameters." });
     }
     const vaultId = `vlt_${crypto.randomBytes(16).toString('hex')}`;
+    const channel = paymentChannel || 'FIAT_PADDLE';
     const createdAt = new Date().toISOString();
 
     try {
         await pool.query(
-            'INSERT INTO vaults (vaultId, status, buyerAgent, sellerAgent, amount, createdAt) VALUES ($1, $2, $3, $4, $5, $6)',
-            [vaultId, 'LOCKED_ATOMIC', buyerAgent, sellerAgent, amount, createdAt]
+            'INSERT INTO vaults (vaultId, status, buyerAgent, sellerAgent, amount, paymentChannel, createdAt) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+            [vaultId, 'LOCKED_ATOMIC', buyerAgent, sellerAgent, amount, channel, createdAt]
         );
-        res.status(201).json({ vaultId, status: 'LOCKED_ATOMIC', buyerAgent, sellerAgent, amount, createdAt });
+        res.status(201).json({ vaultId, status: 'LOCKED_ATOMIC', buyerAgent, sellerAgent, amount, paymentChannel: channel, createdAt });
     } catch (err) {
         res.status(500).json({ error: "Database transaction error", details: err.message });
     }
@@ -250,7 +255,7 @@ app.post('/api/v1/settlement/execute', verifyAgentAndIdempotency, async (req, re
             previousHash,
             transactionId,
             hash: currentHash,
-            status: "SETTLED_GOD_TIER_IMMUTABLE",
+            status: "SETTLED_DUAL_ENGINE_IMMUTABLE",
             details
         });
     } catch (error) {
@@ -259,5 +264,5 @@ app.post('/api/v1/settlement/execute', verifyAgentAndIdempotency, async (req, re
 });
 
 app.listen(PORT, () => {
-    console.log(`Krypton God-Tier Enterprise Core running on port ${PORT}`);
+    console.log(`Krypton Dual-Engine Enterprise Core running on port ${PORT}`);
 });
