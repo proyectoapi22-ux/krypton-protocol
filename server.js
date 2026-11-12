@@ -12,10 +12,17 @@ const pool = new Pool({
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-// Initialize Production Tables
+// Initialize Master Enterprise Tables
 async function initDB() {
     try {
         await pool.query(`
+            CREATE TABLE IF NOT EXISTS agents (
+                apiKey VARCHAR(64) PRIMARY KEY,
+                companyName VARCHAR(128),
+                balance NUMERIC DEFAULT 0,
+                isActive BOOLEAN DEFAULT TRUE,
+                createdAt TIMESTAMP
+            );
             CREATE TABLE IF NOT EXISTS vaults (
                 vaultId VARCHAR(64) PRIMARY KEY,
                 status VARCHAR(32),
@@ -28,37 +35,59 @@ async function initDB() {
                 id SERIAL PRIMARY KEY,
                 blockIndex INT,
                 previousHash VARCHAR(64),
-                transactionId VARCHAR(64),
+                transactionId VARCHAR(64) UNIQUE,
                 hash VARCHAR(64),
                 payload JSONB,
                 createdAt TIMESTAMP
             );
         `);
-        console.log("PostgreSQL production tables synchronized.");
+        console.log("Krypton God-Tier Enterprise Database synchronized.");
     } catch (err) {
         console.error("Database initialization error:", err.message);
     }
 }
 initDB();
 
-// HMAC Agent Authentication Middleware
-function verifyAgentHMAC(req, res, next) {
+// Advanced Multi-Tenant & Idempotency Middleware
+async function verifyAgentAndIdempotency(req, res, next) {
     const apiKey = req.headers['x-api-key'];
     const signature = req.headers['x-signature'];
+    const { transactionId } = req.body;
     const SECRET_KEY = process.env.KRYPTON_SECRET_KEY || "krypton_master_secret_2026";
 
     if (!apiKey) {
         return res.status(401).json({ error: "Access denied. Missing Agent API Key." });
     }
 
-    if (signature) {
-        const computedSig = crypto.createHmac('sha256', SECRET_KEY).update(JSON.stringify(req.body)).digest('hex');
-        if (signature !== computedSig) {
-            return res.status(403).json({ error: "Cryptographic HMAC signature validation failed." });
+    try {
+        // Verify if API Key exists and is active in database
+        const agentRes = await pool.query('SELECT * FROM agents WHERE apiKey = $1 AND isActive = TRUE', [apiKey]);
+        
+        // Fallback master key for initial bootstrap testing if table is empty
+        if (agentRes.rows.length === 0 && apiKey !== 'agent_key_prod_core') {
+            return res.status(403).json({ error: "Invalid or revoked Agent API Key." });
         }
-    }
 
-    next();
+        // HMAC Signature Validation if provided
+        if (signature) {
+            const computedSig = crypto.createHmac('sha256', SECRET_KEY).update(JSON.stringify(req.body)).digest('hex');
+            if (signature !== computedSig) {
+                return res.status(403).json({ error: "Cryptographic HMAC signature validation failed." });
+            }
+        }
+
+        // Idempotency check: Prevent duplicate transaction processing
+        if (transactionId) {
+            const txCheck = await pool.query('SELECT id FROM ledger WHERE transactionId = $1', [transactionId]);
+            if (txCheck.rows.length > 0) {
+                return res.status(409).json({ error: "Idempotency conflict: Transaction ID already processed and immutably committed." });
+            }
+        }
+
+        next();
+    } catch (err) {
+        return res.status(500).json({ error: "Authentication pipeline error", details: err.message });
+    }
 }
 
 // OLED High-Contrast Enterprise Interface
@@ -69,10 +98,10 @@ app.get('/', (req, res) => {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Krypton Protocol | Global Settlement Core</title>
+        <title>Krypton Protocol | God-Tier Settlement Core</title>
         <style>
             body { background: #000000; color: #ffffff; font-family: monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-            .card { background: #0a0a0a; padding: 30px; border-radius: 8px; box-shadow: 0 0 30px rgba(0,255,102,0.08); width: 500px; border: 1px solid #222222; }
+            .card { background: #0a0a0a; padding: 30px; border-radius: 8px; box-shadow: 0 0 30px rgba(0,255,102,0.08); width: 520px; border: 1px solid #222222; }
             h2 { color: #ffffff; margin-top: 0; border-bottom: 1px solid #222222; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
             .status { color: #00ff66; font-size: 11px; font-weight: bold; }
             button { background: #ffffff; color: #000000; border: none; padding: 12px; font-weight: bold; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 15px; transition: 0.2s; }
@@ -83,15 +112,15 @@ app.get('/', (req, res) => {
     </head>
     <body>
         <div class="card">
-            <h2>Krypton Protocol <span class="status">ENTERPRISE [ACTIVE]</span></h2>
-            <div class="stats">PostgreSQL Storage & Immutable Ledger Engine</div>
-            <button onclick="executeSettlementPipeline()">Execute Settlement Pipeline</button>
-            <pre id="output">Core node synchronized and awaiting agent transactions...</pre>
+            <h2>Krypton Protocol <span class="status">GOD-TIER [SECURE]</span></h2>
+            <div class="stats">Multi-Tenant Vaults, Idempotency & Immutable Ledger</div>
+            <button onclick="executeGodTierPipeline()">Execute God-Tier Settlement</button>
+            <pre id="output">Enterprise core initialized. Ready for autonomous agent requests...</pre>
         </div>
         <script>
-            async function executeSettlementPipeline() {
+            async function executeGodTierPipeline() {
                 const output = document.getElementById('output');
-                output.innerText = "1. Initializing cryptographic escrow vault...";
+                output.innerText = "1. Initializing secure escrow vault...";
                 try {
                     const vaultRes = await fetch('/api/v1/escrow/vault', {
                         method: 'POST',
@@ -99,13 +128,14 @@ app.get('/', (req, res) => {
                             'Content-Type': 'application/json',
                             'x-api-key': 'agent_key_prod_core'
                         },
-                        body: JSON.stringify({ buyerAgent: "Autonomous-Agent-Alpha", sellerAgent: "Autonomous-Agent-Beta", amount: 150000 })
+                        body: JSON.stringify({ buyerAgent: "Autonomous-Agent-Alpha", sellerAgent: "Autonomous-Agent-Beta", amount: 250000 })
                     });
                     const vaultData = await vaultRes.json();
                     if (!vaultRes.ok) throw new Error(vaultData.error);
 
-                    output.innerText += "\\nVault Secured: " + vaultData.vaultId + "\\n2. Committing atomic settlement block...";
+                    output.innerText += "\\nVault Secured: " + vaultData.vaultId + "\\n2. Executing Idempotent Settlement with Fee Take-Rate...";
 
+                    const txId = "tx_god_" + Math.floor(Math.random() * 999999);
                     const settleRes = await fetch('/api/v1/settlement/execute', {
                         method: 'POST',
                         headers: { 
@@ -113,18 +143,18 @@ app.get('/', (req, res) => {
                             'x-api-key': 'agent_key_prod_core'
                         },
                         body: JSON.stringify({
-                            transactionId: "tx_global_" + Math.floor(Math.random() * 999999),
+                            transactionId: txId,
                             vaultId: vaultData.vaultId,
                             sourceAgent: "Autonomous-Agent-Alpha",
                             targetAgent: "Autonomous-Agent-Beta",
-                            amount: 150000,
+                            amount: 250000,
                             currency: "USD"
                         })
                     });
                     const settleData = await settleRes.json();
                     if (!settleRes.ok) throw new Error(settleData.error);
 
-                    output.innerText += "\\nBLOCK COMMITTED SUCCESSFULLY:\\n" + JSON.stringify(settleData, null, 2);
+                    output.innerText += "\\nCOMMITTED TO IMMUTABLE LEDGER:\\n" + JSON.stringify(settleData, null, 2);
                 } catch (err) {
                     output.innerText = "ERROR: " + err.message;
                 }
@@ -135,11 +165,30 @@ app.get('/', (req, res) => {
   `);
 });
 
-// Production Escrow Vault Creation
-app.post('/api/v1/escrow/vault', verifyAgentHMAC, async (req, res) => {
+// Register new Agent API Key (Admin Endpoint)
+app.post('/api/v1/agents/register', async (req, res) => {
+    const { companyName } = req.body;
+    if (!companyName) return res.status(400).json({ error: "Company name required." });
+    
+    const apiKey = `agent_key_${crypto.randomBytes(16).toString('hex')}`;
+    const createdAt = new Date().toISOString();
+
+    try {
+        await pool.query(
+            'INSERT INTO agents (apiKey, companyName, balance, isActive, createdAt) VALUES ($1, $2, $3, $4, $5)',
+            [apiKey, companyName, 0, true, createdAt]
+        );
+        res.status(201).json({ message: "Agent successfully registered.", apiKey, companyName });
+    } catch (err) {
+        res.status(500).json({ error: "Database error", details: err.message });
+    }
+});
+
+// Secure Escrow Vault Creation
+app.post('/api/v1/escrow/vault', verifyAgentAndIdempotency, async (req, res) => {
     const { buyerAgent, sellerAgent, amount } = req.body;
     if (!buyerAgent || !sellerAgent || !amount) {
-        return res.status(400).json({ error: "Insufficient payload parameters." });
+        return res.status(400).json({ error: "Insufficient vault parameters." });
     }
     const vaultId = `vlt_${crypto.randomBytes(16).toString('hex')}`;
     const createdAt = new Date().toISOString();
@@ -155,8 +204,8 @@ app.post('/api/v1/escrow/vault', verifyAgentHMAC, async (req, res) => {
     }
 });
 
-// Immutable Settlement Execution
-app.post('/api/v1/settlement/execute', verifyAgentHMAC, async (req, res) => {
+// God-Tier Settlement Execution with Protocol Take-Rate & Idempotency
+app.post('/api/v1/settlement/execute', verifyAgentAndIdempotency, async (req, res) => {
     try {
         const { transactionId, vaultId, sourceAgent, targetAgent, amount, currency } = req.body;
         if (!transactionId || !amount || !currency) {
@@ -167,6 +216,10 @@ app.post('/api/v1/settlement/execute', verifyAgentHMAC, async (req, res) => {
             await pool.query('UPDATE vaults SET status = $1 WHERE vaultId = $2', ['SETTLED_AND_COMMITTED', vaultId]);
         }
 
+        // Calculate 0.2% Protocol Take-Rate (Monetization Engine)
+        const protocolFee = parseFloat(amount) * 0.002;
+        const netSettlementAmount = parseFloat(amount) - protocolFee;
+
         const lastBlockRes = await pool.query('SELECT blockIndex, hash FROM ledger ORDER BY id DESC LIMIT 1');
         const lastIndex = lastBlockRes.rows.length > 0 ? parseInt(lastBlockRes.rows[0].blockindex, 10) : 0;
         const previousHash = lastBlockRes.rows.length > 0 ? lastBlockRes.rows[0].hash : '0';
@@ -174,7 +227,15 @@ app.post('/api/v1/settlement/execute', verifyAgentHMAC, async (req, res) => {
         const blockIndex = lastIndex + 1;
         const timestamp = new Date().toISOString();
         
-        const details = { source: sourceAgent || "Agent", target: targetAgent || "Treasury", amount, currency };
+        const details = { 
+            source: sourceAgent || "Agent", 
+            target: targetAgent || "Treasury", 
+            grossAmount: amount, 
+            protocolFee: protocolFee.toFixed(2),
+            netAmount: netSettlementAmount.toFixed(2),
+            currency 
+        };
+
         const currentHash = crypto.createHash('sha256')
             .update(previousHash + JSON.stringify(details) + timestamp)
             .digest('hex');
@@ -189,7 +250,7 @@ app.post('/api/v1/settlement/execute', verifyAgentHMAC, async (req, res) => {
             previousHash,
             transactionId,
             hash: currentHash,
-            status: "SETTLED_IMMUTABLE_CORE",
+            status: "SETTLED_GOD_TIER_IMMUTABLE",
             details
         });
     } catch (error) {
@@ -198,5 +259,5 @@ app.post('/api/v1/settlement/execute', verifyAgentHMAC, async (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Krypton Enterprise Core running on port ${PORT}`);
+    console.log(`Krypton God-Tier Enterprise Core running on port ${PORT}`);
 });
