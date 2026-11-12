@@ -189,11 +189,12 @@ app.post('/api/v1/settlement/execute', verifyAgentHMAC, async (req, res) => {
             await pool.query('UPDATE vaults SET status = $1 WHERE vaultId = $2', ['SETTLED_AND_COMMITTED', vaultId]);
         }
 
+        // Lógica corregida para evitar NaN cuando el ledger está vacío
         const lastBlockRes = await pool.query('SELECT blockIndex, hash FROM ledger ORDER BY id DESC LIMIT 1');
-        const lastBlock = lastBlockRes.rows[0] || { blockIndex: 0, hash: '0' };
+        const lastIndex = lastBlockRes.rows.length > 0 ? parseInt(lastBlockRes.rows[0].blockindex, 10) : 0;
+        const previousHash = lastBlockRes.rows.length > 0 ? lastBlockRes.rows[0].hash : '0';
 
-        const blockIndex = lastBlock.blockIndex + 1;
-        const previousHash = lastBlock.hash;
+        const blockIndex = lastIndex + 1;
         const timestamp = new Date().toISOString();
         
         const details = { source: sourceAgent || "Agent", target: targetAgent || "Treasury", amount, currency };
