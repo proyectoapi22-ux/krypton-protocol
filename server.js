@@ -46,14 +46,12 @@ function verifyAgentHMAC(req, res, next) {
     const apiKey = req.headers['x-api-key'];
     const signature = req.headers['x-signature'];
     
-    // Llave maestra o registro de agentes autorizados (puedes mover esto a BD o variables de entorno)
     const SECRET_KEY = process.env.KRYPTON_SECRET_KEY || "krypton_master_secret_2026";
 
     if (!apiKey) {
         return res.status(401).json({ error: "Acceso denegado. Falta API Key." });
     }
 
-    // Validación opcional de firma HMAC si el agente envía payloads firmados
     if (signature) {
         const computedSig = crypto.createHmac('sha256', SECRET_KEY).update(JSON.stringify(req.body)).digest('hex');
         if (signature !== computedSig) {
@@ -191,7 +189,6 @@ app.post('/api/v1/settlement/execute', verifyAgentHMAC, async (req, res) => {
             await pool.query('UPDATE vaults SET status = $1 WHERE vaultId = $2', ['SETTLED_AND_COMMITTED', vaultId]);
         }
 
-        // Obtener último bloque del ledger en PostgreSQL para mantener la cadena de hashes
         const lastBlockRes = await pool.query('SELECT blockIndex, hash FROM ledger ORDER BY id DESC LIMIT 1');
         const lastBlock = lastBlockRes.rows[0] || { blockIndex: 0, hash: '0' };
 
