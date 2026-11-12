@@ -1,18 +1,18 @@
 const express = require('express');
 const crypto = require('crypto');
-const { Pool } = require('pg'); // Requerido para PostgreSQL
+const { Pool } = require('pg');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
 app.use(express.json());
 
-// Conexión a PostgreSQL (Render provee DATABASE_URL automáticamente)
+// Database Connection
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-// Inicializar tablas necesarias en PostgreSQL al arrancar
+// Initialize Production Tables
 async function initDB() {
     try {
         await pool.query(`
@@ -34,120 +34,97 @@ async function initDB() {
                 createdAt TIMESTAMP
             );
         `);
-        console.log("Base de datos PostgreSQL sincronizada.");
+        console.log("PostgreSQL production tables synchronized.");
     } catch (err) {
-        console.error("Error al inicializar la base de datos:", err.message);
+        console.error("Database initialization error:", err.message);
     }
 }
 initDB();
 
-// Middleware de Autenticación HMAC por API Key para Agentes
+// HMAC Agent Authentication Middleware
 function verifyAgentHMAC(req, res, next) {
     const apiKey = req.headers['x-api-key'];
     const signature = req.headers['x-signature'];
-    
     const SECRET_KEY = process.env.KRYPTON_SECRET_KEY || "krypton_master_secret_2026";
 
     if (!apiKey) {
-        return res.status(401).json({ error: "Acceso denegado. Falta API Key." });
+        return res.status(401).json({ error: "Access denied. Missing Agent API Key." });
     }
 
     if (signature) {
         const computedSig = crypto.createHmac('sha256', SECRET_KEY).update(JSON.stringify(req.body)).digest('hex');
         if (signature !== computedSig) {
-            return res.status(403).json({ error: "Firma criptográfica HMAC inválida." });
+            return res.status(403).json({ error: "Cryptographic HMAC signature validation failed." });
         }
     }
 
     next();
 }
 
-// Traductor automático de idioma
-function gettext(req) {
-    const lang = req.headers['accept-language'] || 'es';
-    if (lang.includes('en')) {
-        return {
-            title: "Krypton Protocol",
-            status: "ENTERPRISE [SECURE]",
-            subtitle: "PostgreSQL Persistence & HMAC Security Active",
-            btnText: "Execute Production Pipeline",
-            waiting: "Enterprise core ready..."
-        };
-    }
-    return {
-        title: "Krypton Protocol",
-        status: "EMPRESA [SEGURO]",
-        subtitle: "Persistencia PostgreSQL y Seguridad HMAC Activa",
-        btnText: "Ejecutar Pipeline de Producción",
-        waiting: "Núcleo empresarial listo..."
-    };
-}
-
-// Panel Visual OLED
+// OLED High-Contrast Enterprise Interface
 app.get('/', (req, res) => {
-  const t = gettext(req);
   res.send(`
     <!DOCTYPE html>
-    <html lang="es">
+    <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${t.title} | Enterprise Core</title>
+        <title>Krypton Protocol | Global Settlement Core</title>
         <style>
             body { background: #000000; color: #ffffff; font-family: monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-            .card { background: #0a0a0a; padding: 30px; border-radius: 8px; box-shadow: 0 0 30px rgba(0,255,102,0.08); width: 480px; border: 1px solid #222222; }
+            .card { background: #0a0a0a; padding: 30px; border-radius: 8px; box-shadow: 0 0 30px rgba(0,255,102,0.08); width: 500px; border: 1px solid #222222; }
             h2 { color: #ffffff; margin-top: 0; border-bottom: 1px solid #222222; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
             .status { color: #00ff66; font-size: 11px; font-weight: bold; }
             button { background: #ffffff; color: #000000; border: none; padding: 12px; font-weight: bold; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 15px; transition: 0.2s; }
             button:hover { background: #00ff66; color: #000000; }
-            pre { background: #000000; padding: 12px; border-radius: 4px; font-size: 11px; overflow-x: auto; color: #00ff66; border: 1px solid #222222; max-height: 180px; }
+            pre { background: #000000; padding: 12px; border-radius: 4px; font-size: 11px; overflow-x: auto; color: #00ff66; border: 1px solid #222222; max-height: 200px; }
             .stats { font-size: 11px; color: #777777; margin-bottom: 10px; }
         </style>
     </head>
     <body>
         <div class="card">
-            <h2>${t.title} <span class="status">${t.status}</span></h2>
-            <div class="stats">${t.subtitle}</div>
-            <button onclick="testEnterprisePipeline()">${t.btnText}</button>
-            <pre id="output">${t.waiting}</pre>
+            <h2>Krypton Protocol <span class="status">ENTERPRISE [ACTIVE]</span></h2>
+            <div class="stats">PostgreSQL Storage & Immutable Ledger Engine</div>
+            <button onclick="executeSettlementPipeline()">Execute Settlement Pipeline</button>
+            <pre id="output">Core node synchronized and awaiting agent transactions...</pre>
         </div>
         <script>
-            async function testEnterprisePipeline() {
+            async function executeSettlementPipeline() {
                 const output = document.getElementById('output');
-                output.innerText = "1. Creando Vault en PostgreSQL con HMAC...";
+                output.innerText = "1. Initializing cryptographic escrow vault...";
                 try {
                     const vaultRes = await fetch('/api/v1/escrow/vault', {
                         method: 'POST',
                         headers: { 
                             'Content-Type': 'application/json',
-                            'x-api-key': 'agent_key_test_999'
+                            'x-api-key': 'agent_key_prod_core'
                         },
-                        body: JSON.stringify({ buyerAgent: "Agent-Alpha", sellerAgent: "Agent-Beta", amount: 75000 })
+                        body: JSON.stringify({ buyerAgent: "Autonomous-Agent-Alpha", sellerAgent: "Autonomous-Agent-Beta", amount: 150000 })
                     });
                     const vaultData = await vaultRes.json();
                     if (!vaultRes.ok) throw new Error(vaultData.error);
 
-                    output.innerText += "\\nVAULT DB ID: " + vaultData.vaultId + "\\n2. Ejecutando Liquidación Inmutable...";
+                    output.innerText += "\\nVault Secured: " + vaultData.vaultId + "\\n2. Committing atomic settlement block...";
 
                     const settleRes = await fetch('/api/v1/settlement/execute', {
                         method: 'POST',
                         headers: { 
                             'Content-Type': 'application/json',
-                            'x-api-key': 'agent_key_test_999'
+                            'x-api-key': 'agent_key_prod_core'
                         },
                         body: JSON.stringify({
-                            transactionId: "tx_prod_" + Math.floor(Math.random() * 99999),
+                            transactionId: "tx_global_" + Math.floor(Math.random() * 999999),
                             vaultId: vaultData.vaultId,
-                            sourceAgent: "Agent-Alpha",
-                            targetAgent: "Agent-Beta",
-                            amount: 75000,
+                            sourceAgent: "Autonomous-Agent-Alpha",
+                            targetAgent: "Autonomous-Agent-Beta",
+                            amount: 150000,
                             currency: "USD"
                         })
                     });
                     const settleData = await settleRes.json();
                     if (!settleRes.ok) throw new Error(settleData.error);
 
-                    output.innerText += "\\nSUCCESSFULLY COMMITTED TO DB:\\n" + JSON.stringify(settleData, null, 2);
+                    output.innerText += "\\nBLOCK COMMITTED SUCCESSFULLY:\\n" + JSON.stringify(settleData, null, 2);
                 } catch (err) {
                     output.innerText = "ERROR: " + err.message;
                 }
@@ -158,11 +135,11 @@ app.get('/', (req, res) => {
   `);
 });
 
-// Endpoint protegidos con HMAC y persistencia en PostgreSQL
+// Production Escrow Vault Creation
 app.post('/api/v1/escrow/vault', verifyAgentHMAC, async (req, res) => {
     const { buyerAgent, sellerAgent, amount } = req.body;
     if (!buyerAgent || !sellerAgent || !amount) {
-        return res.status(400).json({ error: "Parámetros insuficientes." });
+        return res.status(400).json({ error: "Insufficient payload parameters." });
     }
     const vaultId = `vlt_${crypto.randomBytes(16).toString('hex')}`;
     const createdAt = new Date().toISOString();
@@ -174,22 +151,22 @@ app.post('/api/v1/escrow/vault', verifyAgentHMAC, async (req, res) => {
         );
         res.status(201).json({ vaultId, status: 'LOCKED_ATOMIC', buyerAgent, sellerAgent, amount, createdAt });
     } catch (err) {
-        res.status(500).json({ error: "Error de base de datos", details: err.message });
+        res.status(500).json({ error: "Database transaction error", details: err.message });
     }
 });
 
+// Immutable Settlement Execution
 app.post('/api/v1/settlement/execute', verifyAgentHMAC, async (req, res) => {
     try {
         const { transactionId, vaultId, sourceAgent, targetAgent, amount, currency } = req.body;
         if (!transactionId || !amount || !currency) {
-            return res.status(400).json({ error: "Parámetros de liquidación insuficientes." });
+            return res.status(400).json({ error: "Insufficient settlement parameters." });
         }
 
         if (vaultId) {
             await pool.query('UPDATE vaults SET status = $1 WHERE vaultId = $2', ['SETTLED_AND_COMMITTED', vaultId]);
         }
 
-        // Lógica corregida para evitar NaN cuando el ledger está vacío
         const lastBlockRes = await pool.query('SELECT blockIndex, hash FROM ledger ORDER BY id DESC LIMIT 1');
         const lastIndex = lastBlockRes.rows.length > 0 ? parseInt(lastBlockRes.rows[0].blockindex, 10) : 0;
         const previousHash = lastBlockRes.rows.length > 0 ? lastBlockRes.rows[0].hash : '0';
@@ -212,7 +189,7 @@ app.post('/api/v1/settlement/execute', verifyAgentHMAC, async (req, res) => {
             previousHash,
             transactionId,
             hash: currentHash,
-            status: "SETTLED_IMMUTABLE_DB",
+            status: "SETTLED_IMMUTABLE_CORE",
             details
         });
     } catch (error) {
