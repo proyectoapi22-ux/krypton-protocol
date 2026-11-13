@@ -205,7 +205,8 @@ app.post('/api/v1/escrow/vault', verifyAgentAndIdempotency, async (req, res) => 
         );
         res.status(201).json({ vaultId, status: 'LOCKED_ATOMIC', buyerAgent, sellerAgent, amount, paymentChannel: channel, createdAt });
     } catch (err) {
-        res.status(500).json({ error: "Database transaction error", details: err.message });
+        console.error("Vault Creation DB Error:", err.message);
+        res.status(500).json({ error: "Database transaction error: " + err.message, details: err.message });
     }
 });
 
@@ -259,7 +260,8 @@ app.post('/api/v1/settlement/execute', verifyAgentAndIdempotency, async (req, re
             details
         });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error("Settlement Execution DB Error:", error.message);
+        res.status(500).json({ error: "Database transaction error: " + error.message, details: error.message });
     }
 });
 
