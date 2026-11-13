@@ -12,7 +12,7 @@ const pool = new Pool({
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-// Initialize Master Enterprise Tables with Dual-Channel Support
+// Initialize Master Enterprise Tables
 async function initDB() {
     try {
         await pool.query(`
@@ -30,7 +30,6 @@ async function initDB() {
                 buyerAgent VARCHAR(64),
                 sellerAgent VARCHAR(64),
                 amount NUMERIC,
-                paymentChannel VARCHAR(32) DEFAULT 'FIAT_PADDLE',
                 createdAt TIMESTAMP
             );
             CREATE TABLE IF NOT EXISTS ledger (
@@ -43,7 +42,7 @@ async function initDB() {
                 createdAt TIMESTAMP
             );
         `);
-        console.log("Krypton Dual-Engine Enterprise Database synchronized.");
+        console.log("Krypton Protocol Database synchronized.");
     } catch (err) {
         console.error("Database initialization error:", err.message);
     }
@@ -118,7 +117,7 @@ app.get('/', (req, res) => {
         <script>
             async function executeDualPipeline() {
                 const output = document.getElementById('output');
-                output.innerText = "1. Initializing secure escrow vault (Channel: CRYPTO_USDT)...";
+                output.innerText = "1. Initializing secure escrow vault...";
                 try {
                     const vaultRes = await fetch('/api/v1/escrow/vault', {
                         method: 'POST',
@@ -129,8 +128,7 @@ app.get('/', (req, res) => {
                         body: JSON.stringify({ 
                             buyerAgent: "Autonomous-Agent-Alpha", 
                             sellerAgent: "Autonomous-Agent-Beta", 
-                            amount: 300000,
-                            paymentChannel: "CRYPTO_USDT" 
+                            amount: 300000 
                         })
                     });
                     const vaultData = await vaultRes.json();
@@ -182,35 +180,33 @@ app.post('/api/v1/agents/register', async (req, res) => {
             'INSERT INTO agents (apiKey, companyName, balance, preferredPaymentMethod, isActive, createdAt) VALUES ($1, $2, $3, $4, $5, $6)',
             [apiKey, companyName, 0, paymentMethod, true, createdAt]
         );
-        res.status(201).json({ message: "Agent successfully registered with dual-engine support.", apiKey, companyName, paymentMethod });
+        res.status(201).json({ message: "Agent successfully registered.", apiKey, companyName, paymentMethod });
     } catch (err) {
         res.status(500).json({ error: "Database error", details: err.message });
     }
 });
 
-// Secure Escrow Vault Creation with Payment Channel Support
+// Secure Escrow Vault Creation
 app.post('/api/v1/escrow/vault', verifyAgentAndIdempotency, async (req, res) => {
-    const { buyerAgent, sellerAgent, amount, paymentChannel } = req.body;
+    const { buyerAgent, sellerAgent, amount } = req.body;
     if (!buyerAgent || !sellerAgent || !amount) {
         return res.status(400).json({ error: "Insufficient vault parameters." });
     }
     const vaultId = `vlt_${crypto.randomBytes(16).toString('hex')}`;
-    const channel = paymentChannel || 'FIAT_PADDLE';
     const createdAt = new Date().toISOString();
 
     try {
         await pool.query(
-            'INSERT INTO vaults (vaultId, status, buyerAgent, sellerAgent, amount, paymentChannel, createdAt) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-            [vaultId, 'LOCKED_ATOMIC', buyerAgent, sellerAgent, amount, channel, createdAt]
+            'INSERT INTO vaults (vaultId, status, buyerAgent, sellerAgent, amount, createdAt) VALUES ($1, $2, $3, $4, $5, $6)',
+            [vaultId, 'LOCKED_ATOMIC', buyerAgent, sellerAgent, amount, createdAt]
         );
-        res.status(201).json({ vaultId, status: 'LOCKED_ATOMIC', buyerAgent, sellerAgent, amount, paymentChannel: channel, createdAt });
+        res.status(201).json({ vaultId, status: 'LOCKED_ATOMIC', buyerAgent, sellerAgent, amount, createdAt });
     } catch (err) {
-        console.error("Vault Creation DB Error:", err.message);
-        res.status(500).json({ error: "Database transaction error: " + err.message, details: err.message });
+        res.status(500).json({ error: "Database transaction error", details: err.message });
     }
 });
 
-// God-Tier Settlement Execution with Protocol Take-Rate & Idempotency
+// Settlement Execution with Protocol Take-Rate & Idempotency
 app.post('/api/v1/settlement/execute', verifyAgentAndIdempotency, async (req, res) => {
     try {
         const { transactionId, vaultId, sourceAgent, targetAgent, amount, currency } = req.body;
@@ -222,7 +218,7 @@ app.post('/api/v1/settlement/execute', verifyAgentAndIdempotency, async (req, re
             await pool.query('UPDATE vaults SET status = $1 WHERE vaultId = $2', ['SETTLED_AND_COMMITTED', vaultId]);
         }
 
-        // Calculate 0.2% Protocol Take-Rate (Monetization Engine)
+        // Calculate 0.2% Protocol Take-Rate
         const protocolFee = parseFloat(amount) * 0.002;
         const netSettlementAmount = parseFloat(amount) - protocolFee;
 
@@ -260,11 +256,10 @@ app.post('/api/v1/settlement/execute', verifyAgentAndIdempotency, async (req, re
             details
         });
     } catch (error) {
-        console.error("Settlement Execution DB Error:", error.message);
-        res.status(500).json({ error: "Database transaction error: " + error.message, details: error.message });
+        res.status(500).json({ error: "Database transaction error", details: error.message });
     }
 });
 
 app.listen(PORT, () => {
-    console.log(`Krypton Dual-Engine Enterprise Core running on port ${PORT}`);
+    console.log(`Krypton Protocol running on port ${PORT}`);
 });
